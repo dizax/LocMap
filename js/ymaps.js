@@ -33,7 +33,7 @@ function init() {
         });
     myMap.controls.add(button, { float: 'right', floatIndex: 100 });
 
-    button2 = new ymaps.control.Button("Info");
+    /*button2 = new ymaps.control.Button("Info");
     button2.options.set('selectOnClick', false);
     button2.events.add('click', dbInfo);
     myMap.controls.add(button2, {float: 'right'});
@@ -41,7 +41,7 @@ function init() {
     button3 = new ymaps.control.Button("Save DOZ");
     button3.options.set('selectOnClick', false);
     button3.events.add('click', saveDozPoints);
-    myMap.controls.add(button3, {float: 'right'});
+    myMap.controls.add(button3, {float: 'right'});*/
 
     button4 = new ymaps.control.Button("Destroy");
     button4.options.set('selectOnClick', false);
