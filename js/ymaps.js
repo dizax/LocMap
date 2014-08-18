@@ -17,10 +17,10 @@ function init() {
     // create controls /////////////////////////////////
     var mySearchControl = new ymaps.control.SearchControl({
         options: {
-            provider: new CustomSearchProvider(dozotory, myMap)
+            provider: new CustomSearchProvider()
     }});
 
-    myMap.controls.add(mySearchControl)
+    myMap.controls.add(mySearchControl);
 
 
     var ButtonLayout = ymaps.templateLayoutFactory.createClass(
