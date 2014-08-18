@@ -7,38 +7,42 @@ var db1, db2, db3;
 
 createDatabase();
 
-PouchDB.on('created', function (dbname) {
-  if (dbname === 'locs')
-    db2 = new PouchDB('detLocs');
-  else if (dbname === 'detLocs')
-    db3 = new PouchDB('dozPoints');
-  else if (dbname === 'dozPoints') {
-    console.log("done creating");
-  }
-});
-
-// smth weird is happening here..
-PouchDB.on('destroyed', function (dbname) {
-  if (dbname === 'locs')
-    db2.destroy(function(err, info) { });
-    //PouchDB.destroy('detLocs', function(err, info) { });
-  else if (dbname === 'detLocs')
-    db3.destroy(function(err, info) { });
-    //PouchDB.destroy('dozPoints', function(err, info) { });
-  else if (dbname === 'dozPoints') {
-    removeObjectsFromMap();
-    console.log("done destroying");
-  }
-});
-
-// User pressed the delete button for a todo, delete it
 function createDatabase() {
-  db1 = new PouchDB('locs');
+    (function() {
+        var dfd = new $.Deferred();
+        db1 = new PouchDB('locs');
+        return dfd.promise();
+    })()
+        .then((function() {
+            var dfd2 = new $.Deferred();
+            db2 = new PouchDB('detLocs');
+            return dfd2.promise();
+        })()
+            .then((function() {
+                var dfd3 = new $.Deferred();
+                db3 = new PouchDB('dozPoints');
+                return dfd3.promise();
+            })())
+                .then(console.log("done creating")));
 }
 
 function destroyDatabase() {
-  db1.destroy(function(err, info) { });
-  //PouchDB.destroy('locs', function(err, info) { });
+    loaded = false;
+
+    db1.destroy(function(err, info) { })
+        .then(function () {
+            db2.destroy(function(err, info) { })
+                .then(function () {
+                    db3.destroy(function(err, info) { })
+                        .then(function() {
+                            removeObjectsFromMap();
+                            console.log("done destroying");
+
+                            // recreate objects
+                            createDatabase();
+                        })
+                })
+        });
 }
 
 // reading from file
@@ -66,25 +70,27 @@ function parseCSV(text, f, lineTerminator, cellTerminator) {
 }
 
 function consequentWriter(cur, max, lines, f, cellTerminator) {
-  if (cur >= max) {
-    // if last
-    if (f === addDetLoc) {
-      print("done reading files");
-      fetch();
-    }
-    return;
-  }
+    if (cur >= max) {
+        // if last
+        if (f === addLoc)
+            console.log("write locs done");
+        else if (f === addDetLoc)
+            console.log("write detlocs done");
+        else if (f === addDozPoint)
+            console.log("write dozpoints done");
 
-  if (lines[cur] != "") {
-    //split the rows at the cellTerminator character
-    var information = lines[cur].split(cellTerminator);
-    f(cur, information).then( consequentWriter(cur+1, max, lines, f, cellTerminator) );
-  } else
-    consequentWriter(cur+1, max, lines, f, cellTerminator)
+        return;
+    }
+
+    if (lines[cur] != "") {
+        //split the rows at the cellTerminator character
+        var information = lines[cur].split(cellTerminator);
+        f(cur, information).then( consequentWriter(cur+1, max, lines, f, cellTerminator) );
+    } else
+        consequentWriter(cur+1, max, lines, f, cellTerminator)
 }
 
 
-// We have to create a new todo document and enter it in the database
 function addLoc(id, row) {
   var loc = {
     _id: id.toString(),
@@ -188,16 +194,17 @@ function dbInfo() {
 }
 
 
-function fetch() {
-  db1.info(function(err, info) {
-    if (!err) {
-      print(info.doc_count);
-      // weird things..
-      //if (info.doc_count > 0)
-        fetchDozPoints();
+function fetch(check) {
+    if (check) {
+        db1.info(function (err, info) {
+            if (!err) {
+                if (info.doc_count > 0)
+                    fetchDozPoints();
+            } else
+                print(err);
+        });
     } else
-      print(err);
-  });
+        fetchDozPoints();
 }
 
 function fetchCoords() {
@@ -222,15 +229,26 @@ function fetchDozPoints() {
 }
 
 function saveDozPoints() {
-  print("saving dozPoints");
+    print("saving dozPoints");
 
-  var lines = [],
-      coords = dozotory.geometry.getCoordinates()[0];
+    var lines = [],
+        coords = dozotory.geometry.getCoordinates()[0];
 
-  for (var i in coords)
+    for (var i in coords)
     lines.push(coords[i][0].toString() + "\t" + coords[i][1].toString());
 
-  consequentWriter(0, lines.length, lines, updateDozPoint, '\t');
+    db3.destroy(function(err, info) {})
+        .then((function() {
+            var dfd3 = new $.Deferred();
+
+            db3 = new PouchDB('dozPoints');
+
+            return dfd3.promise();
+        })()
+            .then( function() {
+                consequentWriter(0, lines.length, lines, addDozPoint, '\t');
+            }
+        ));
 }
 
 function print(m) {
