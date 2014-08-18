@@ -1,9 +1,10 @@
 var myMap,
     dozotory,
     allObjects = [],
-    targetObjects;
+    targetObjects,
+    loaded = false;
 
-ymaps.ready(init).then(fetch);
+ymaps.ready(init).then(fetch(true));
 
 function init() {
     // create map ///////////////////////////////////
@@ -152,26 +153,7 @@ function mapDetInf(resp) {
         allObjects[j].properties.set('balloonContentBody', oldStr+"</table>");
     }
 
-    /*var i = 0;
-    for(var ind in allObjects) {
-        var gameStr = "<table>";
-        var locId = allObjects[ind].properties.get('balloonContentHeader', '').substring(24, 27);
-        print(locId);
-
-        while (locId === resp[i].key[0]) {
-            print(locId);
-            gameStr += "<tr>";
-            for (var j = 1; j < resp[i].key.length; j++) 
-                gameStr += "<td>" + resp[i].key[j] + "</td>";
-            gameStr += "</tr>";
-
-            i++;
-        }
-        gameStr += "</table>";
-
-        allObjects[ind].properties.set('balloonContentBody', gameStr);
-    }*/
-
+    loaded = true;
     print("detInf loaded");
 }
 
@@ -191,27 +173,22 @@ function getLocId(ind) {
 }
 
 
-function CustomSearchProvider(m_polygon, m_map) {
-    this.polygon = m_polygon;
-    this.map = m_map;
+function CustomSearchProvider() {
 }
 
 CustomSearchProvider.prototype.geocode = function (request, options) {
     var deferred = new ymaps.vow.defer(),
-        m_geoObjects = new ymaps.GeoObjectCollection(),
-        tmp_polygon = this.polygon;
+        m_geoObjects = new ymaps.GeoObjectCollection();
 
     ymaps.geocode(request, {
-        boundedBy: this.map.getBounds(),
+        boundedBy: myMap.getBounds(),
         //strictBounds: true,
         results: 10
     })
     .then(function (res) {
         res.geoObjects.each(function (el, i) {
             var coords = el.geometry.getCoordinates();
-            //console.log(coords);
-            //console.log(el.properties.get('metaDataProperty').GeocoderMetaData.kind);
-            if (tmp_polygon.geometry.contains(coords))
+            if (dozotory.geometry.contains(coords))
                 m_geoObjects.add(el);
         });
 
@@ -241,17 +218,19 @@ CustomSearchProvider.prototype.geocode = function (request, options) {
 
 // file reader
 function handleFileSelect(files) {
+    console.log("here");
+
     if (files.length > 3) {
         alert('Too much files');
         return;
     }
 
     var names = [];
-    for (i in files)
+    for (var i in files)
         names.push(files[i].name);
 
     var inds = [];
-    for (i in fileNames)
+    for (var i in fileNames)
         inds.push(names.indexOf(fileNames[i]));
     
     if (inds.indexOf(-1) > -1) {
@@ -262,16 +241,18 @@ function handleFileSelect(files) {
     // if db is not empty -> stop
     db1.info(function(err, info) {
         if (!err) {
-            print(info.doc_count);
+            console.log("db_locs_cnt", info.doc_count);
             if (info.doc_count == 0) {
+                console.log("reading");
                 readFile(addLoc, files[inds[0]]);
                 readFile(addDetLoc, files[inds[1]]);
                 readFile(addDozPoint, files[inds[2]]);
+
+                fetch(false);
             } else {
-                // have to destroy at first maybe
                 print("already loaded");
             }
         } else
-        print(err);
+            print(err);
     });
 }
