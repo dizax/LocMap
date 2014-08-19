@@ -1,5 +1,5 @@
-<b>WARNING</b> <br>
-Alpha version, sort of, bugs are present.
+<b>DESCRIPTION</b> <br>
+Displays on map loaded locations, bounded by given polygon.
 
 <b>USAGE</b> <br>
 At first launch, choose 3 text files, representing tables, formatted like:
@@ -14,4 +14,3 @@ At first launch, choose 3 text files, representing tables, formatted like:
 <table><tr><td>coord1</td>  <td>coord1</td></tr></table>
 
 Then it is stored in local DB. To remove it, click 'Destroy' button.
-After DB destroying, new files can be loaded after page reloading (either way db crashes - TODO).

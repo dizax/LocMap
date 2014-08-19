@@ -1,10 +1,11 @@
 var myMap,
     dozotory,
     allObjects = [],
+    filterInds = [],
     targetObjects,
     loaded = false;
 
-ymaps.ready(init).then(fetch(true));
+ymaps.ready(init).then(function() {fetch(true); leagueChanged()});
 
 function init() {
     // create map ///////////////////////////////////
@@ -22,9 +23,8 @@ function init() {
 
     myMap.controls.add(mySearchControl);
 
-
     var ButtonLayout = ymaps.templateLayoutFactory.createClass(
-            "<input type='file' class='fileR' id='files' name='chosenFile' multiple=3" +
+            "<input type='file' class='fileR' id='files' name='chosenFile' multiple='multiple'" +
             "accept='text/txt' onchange='handleFileSelect(this.files);'/>"
         ),
             
@@ -72,7 +72,7 @@ function init() {
     // create visible objects group
     targetObjects = new ymaps.GeoObjectCollection();
 
-    print("map initialized");
+    console.log("map initialized");
 }
 
 //init END ///////////////////////////////////////////
@@ -97,7 +97,7 @@ function loadDozotory(resp) {
     dozotory.editor.startDrawing();
 
     myMap.setBounds(dozotory.geometry.getBounds());
-    print("dozPoints loaded");
+    console.log("dozPoints loaded");
 
     // THEN fetch coordinates
     fetchCoords();
@@ -111,62 +111,95 @@ function loadTargetObjects(resp) {
             address = resp[i].key[4],
             lastUsed = resp[i].key[5];
 
+        filterInds.push(i);
+
         allObjects.push(new ymaps.Placemark(coords, {
             balloonContentHeader:  "<strong>locID:</strong> <span class='colortext'>" + locId + "</span> <strong>useCnt:</strong> <span class='colortext'>" 
                                    + useCnt + "</span> <strong>lastUsed:</strong> <span class='colortext'>" + lastUsed + "</span>",
-            balloonContentBody: 'game1<br>game2',
-            balloonContentFooter: address + "<br>" + resp[i].key[2] + ", " + resp[i].key[3]
+            balloonContentBody: "Идет загрузка данных...",
+            balloonContentFooter: address + "<br>" + resp[i].key[2] + ", " + resp[i].key[3],
+            locId: locId
         }, {
             preset: 'islands#icon',
             iconColor: colours[i]
         }));
+
+        allObjects[i].events.add('balloonopen', function (e) {
+            var target = e.originalEvent.currentTarget;
+            if (target.properties.get('balloonContentBody', '') != "Идет загрузка данных...")
+                return;
+
+            loaded = false;
+            fetchDetInf(target.properties.get('locId', ''));
+        });
     }
 
     updateTargetObjects();
     myMap.geoObjects.add(targetObjects);
-    print("coords loaded");
 
-    // THEN fetch detailed information
-    fetchDetInf();
+    loaded = true;
+    enableFilter();
+    console.log("coords loaded");
 }
 
-function mapDetInf(resp) {
-    for (var j in allObjects)
-        allObjects[j].properties.set('balloonContentBody', "<table>");
-
-    for (var i in resp) {
-        for (var j in allObjects) {
-            if (getLocId(j) == resp[i].key[3]) {
-                var gameStr = "<tr>";
-                for (var k = 0; k < 3; k++)
-                    gameStr += "<td>" + resp[i].key[k] + "</td>";
-                gameStr += "</tr>";
-
-                var oldStr = allObjects[j].properties.get('balloonContentBody', '');
-                allObjects[j].properties.set('balloonContentBody', oldStr+gameStr);
-            }
+function mapDetInf(locId, resp) {
+    var ind = 1;
+    for (var j in allObjects) {
+        if (allObjects[j].properties.get('locId', '') == locId) {
+            ind = j;
+            break;
         }
     }
 
-    for (var j in allObjects) {
-        var oldStr = allObjects[j].properties.get('balloonContentBody', '');
-        allObjects[j].properties.set('balloonContentBody', oldStr+"</table>");
+    allObjects[ind].properties.set('balloonContentBody', "<table>");
+
+    for (var i in resp) {
+        var gameStr = "<tr>";
+        for (var k = 0; k < 3; k++)
+            gameStr += "<td>" + resp[i].key[k] + "</td>";
+        gameStr += "</tr>";
+
+        var oldStr = allObjects[ind].properties.get('balloonContentBody', '');
+        allObjects[ind].properties.set('balloonContentBody', oldStr+gameStr);
     }
 
+    oldStr = allObjects[ind].properties.get('balloonContentBody', '');
+    allObjects[ind].properties.set('balloonContentBody', oldStr+"</table>");
+
     loaded = true;
-    print("detInf loaded");
+    console.log(locId + " detInf loaded");
 }
 
 function updateTargetObjects() {
     //targetObjects.options.set('visible', false);
     targetObjects.removeAll();
 
-    for (var i in allObjects) {
-        if (dozotory.geometry.contains( allObjects[i].geometry.getCoordinates() ))
-            targetObjects.add(allObjects[i]);
-            //targetObjects.get(i).options.set('visible', true);
-    }
+    for (var i in filterInds)
+        if (dozotory.geometry.contains( allObjects[filterInds[i]].geometry.getCoordinates() ))
+            targetObjects.add(allObjects[filterInds[i]]);
 }
+
+function filterTargetObjects(resp) {
+    console.log("filtering");
+    filterInds = [];
+
+    for (var i in allObjects)
+        if (responseContain( allObjects[i].properties.get('locId', ''), resp ))
+            filterInds.push(i);
+
+    updateTargetObjects();
+    loaded = true;
+}
+
+// for response.rows
+function responseContain(val, resp) {
+    for (var i in resp)
+        if (val == resp[i].key)
+            return true;
+
+    return false;
+}
+
 
 function getLocId(ind) {
     return allObjects[ind].properties.get('balloonContentHeader', '').substring(48, 51);
@@ -249,10 +282,11 @@ function handleFileSelect(files) {
                 readFile(addDozPoint, files[inds[2]]);
 
                 fetch(false);
+                leagueChanged();
             } else {
-                print("already loaded");
+                console.log("already loaded");
             }
         } else
-            print(err);
+            console.log(err);
     });
 }
