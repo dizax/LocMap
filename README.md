@@ -14,4 +14,3 @@ At first launch, choose 3 text files, representing tables, formatted like:
 <table><tr><td>coord1</td>  <td>coord1</td></tr></table>
 
 Then it is stored in local DB. To remove it, click 'Destroy' button.
-After DB destroying, new files can be loaded after page reloading (either way db crashes - TODO).
