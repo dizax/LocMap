@@ -28,6 +28,7 @@ function createDatabase() {
 
 function destroyDatabase() {
     loaded = false;
+    disableFilter();
 
     db1.destroy(function(err, info) { })
         .then(function () {
@@ -36,6 +37,7 @@ function destroyDatabase() {
                     db3.destroy(function(err, info) { })
                         .then(function() {
                             removeObjectsFromMap();
+                            clearSelectors();
                             console.log("done destroying");
 
                             // recreate objects
@@ -47,20 +49,18 @@ function destroyDatabase() {
 
 // reading from file
 function readFile(f, file) {
-  var reader = new FileReader();
+    var reader = new FileReader();
 
-  //break the lines apart
-  reader.onload = (function(theFile) {
+    //break the lines apart
+    reader.onload = (function(theFile) {
     return function(e) {
-    
       //call the parse function with the proper line terminator and cell terminator
       parseCSV(e.target.result, f, '\n', '\t');
-    
     };
-  })(file);
+    })(file);
 
-  // Read the file as text
-  reader.readAsText(file);
+    // Read the file as text
+    reader.readAsText(file);
 }
 
 function parseCSV(text, f, lineTerminator, cellTerminator) {
@@ -92,70 +92,70 @@ function consequentWriter(cur, max, lines, f, cellTerminator) {
 
 
 function addLoc(id, row) {
-  var loc = {
-    _id: id.toString(),
-    locId: row[0],
-    coord1: row[1],
-    coord2: row[2],
-    address: row[3],
-    lastUsed: row[4],
-    useCnt: row[5]
-  };
+    var loc = {
+        _id: id.toString(),
+        locId: row[0],
+        coord1: row[1],
+        coord2: row[2],
+        address: row[3],
+        lastUsed: row[4],
+        useCnt: row[5]
+    };
 
-  return db1.put(loc, function callback(err, result) {
-    if (err) {
-      console.log('Cant post a location' + row[0]);
-      print(err);
-    }
-  });
+    return db1.put(loc, function callback(err) {
+        if (err) {
+            console.log('Cant post a location ' + row[0]);
+            console.log(err);
+        }
+    });
 }
 
 function addDetLoc(id, row) {
-  var detLoc = {
-    _id: id.toString(),
-    league: row[0],
-    date: row[1],
-    name: row[2],
-    locIdd: row[3]
-  };
+    var detLoc = {
+        _id: id.toString(),
+        league: row[0],
+        date: row[1],
+        name: row[2],
+        locIdd: row[3]
+    };
 
-  return db2.put(detLoc, function callback(err, result) {
-    if (err) {
-      console.log('Cant post a detailed location');
-      print(err);
-    }
-  });
+    return db2.put(detLoc, function callback(err) {
+        if (err) {
+            console.log('Cant post a detailed location');
+            console.log(err);
+        }
+    });
 }
 
 function addDozPoint(id, row) {
-  var dozPoint = {
-    _id: id.toString(),
-    coord1: row[0],
-    coord2: row[1]
-  };
+    var dozPoint = {
+        _id: id.toString(),
+        coord1: row[0],
+        coord2: row[1]
+    };
 
-  return db3.put(dozPoint, function callback(err, result) {
-    if (err) {
-      console.log('Cant post dozotory point');
-      print(err);
-    }
-  });
+    return db3.put(dozPoint, function callback(err) {
+        if (err) {
+            console.log('Cant post dozotory point');
+            console.log(err);
+        }
+    });
 }
 
 function updateDozPoint(id, row) {
-  return db3.query(function (doc) { 
-      print(parseInt(doc._id)); 
-      if (parseInt(doc._id) == id+1) 
+  return db3.query(function (doc) {
+      console.log(parseInt(doc._id));
+      if (parseInt(doc._id) == id+1)
         return db3.put({
               _id: id.toString(),
               _rev: doc._rev,
               coord1: row[0],
               coord2: row[1]
-            }); 
+            });
       },
       function (err, resp) {
         if (!err) {
-          print(resp);
+          console.log(resp);
           /*return db3.put({
             _id: id.toString(),
             _rev: resp[0]._rev,
@@ -164,7 +164,7 @@ function updateDozPoint(id, row) {
           });*/
         } else {
           console.log('Cant update dozotory point');
-          print(err);
+          console.log(err);
         }
     });
 }
@@ -173,23 +173,23 @@ function updateDozPoint(id, row) {
 function dbInfo() {
   db1.info(function(err, info) {
     if (!err)
-      print(info);
+      console.log(info);
     else
-      print(err);
+      console.log(err);
   });
 
   db2.info(function(err, info) {
     if (!err)
-      print(info);
+      console.log(info);
     else
-      print(err);
+      console.log(err);
   });
 
   db3.info(function(err, info) {
     if (!err)
-      print(info);
+      console.log(info);
     else
-      print(err);
+      console.log(err);
   });
 }
 
@@ -198,38 +198,44 @@ function fetch(check) {
     if (check) {
         db1.info(function (err, info) {
             if (!err) {
-                if (info.doc_count > 0)
+                if (info.doc_count > 0) {
+                    loaded = false;
                     fetchDozPoints();
+                }
             } else
-                print(err);
+                console.log(err);
         });
-    } else
+    } else {
+        loaded = false;
+        disableFilter();
+
         fetchDozPoints();
+    }
 }
 
 function fetchCoords() {
-  print("fetching coords");
+  console.log("fetching coords");
 
   db1.query(function (doc, emit) { emit([doc.useCnt, doc.locId, doc.coord1, doc.coord2, doc.address, doc.lastUsed]); },
-    function (err, response) { if (!err) {print("coords fetched"); computeColours(response.rows); loadTargetObjects(response.rows);} else print(err); });
+    function (err, response) { if (!err) {console.log("coords fetched"); computeColours(response.rows); loadTargetObjects(response.rows);} else console.log(err); });
 }
 
 function fetchDetInf(locId) {
-  print("fetching detInf for " + locId);
+  console.log("fetching detInf for " + locId);
 
   db2.query(function (doc, emit) {if (locId == doc.locIdd) emit([doc.date, doc.league, doc.name]); }, {descending: true},
-    function (err, response) { if (!err) {print(locId + " detInf fetched"); mapDetInf(locId, response.rows);} else print(err); });
+    function (err, response) { if (!err) {console.log(locId + " detInf fetched"); mapDetInf(locId, response.rows);} else console.log(err); });
 }
 
 function fetchDozPoints() {
-  print("fetching dozPoints");
+  console.log("fetching dozPoints");
 
   db3.query(function (doc, emit) { emit([doc._id, doc.coord1, doc.coord2]); },
-    function (err, response) { if (!err) {print("dozPoints fetched"); loadDozotory(response.rows);} else print(err); });
+    function (err, response) { if (!err) {console.log("dozPoints fetched"); loadDozotory(response.rows);} else console.log(err); });
 }
 
 function saveDozPoints() {
-    print("saving dozPoints");
+    console.log("saving dozPoints");
 
     var lines = [],
         coords = dozotory.geometry.getCoordinates()[0];
@@ -249,8 +255,4 @@ function saveDozPoints() {
                 consequentWriter(0, lines.length, lines, addDozPoint, '\t');
             }
         ));
-}
-
-function print(m) {
-  console.log(m);
 }

@@ -20,11 +20,6 @@
         .colortext {
             color: red; /* Красный цвет выделения */
         }
-
-        #my-listbox {
-            top: auto;
-            left: auto;
-        }
     </style>
 
     <script src="js/database.js" type="text/javascript"></script>
@@ -35,21 +30,20 @@
   </head>
 
   <body>
-  <!--
-    <select id="leagueSelect" onchange="leagueChanged(this.options[this.selectedIndex].value)">
+    <select id="leagueSelect" onchange="leagueChanged()">
       <option>All</option>
       <option>Лайт</option>
       <option>альфа</option>
       <option>первая</option><
       <option>высшая</option>
     </select>
-    <select id="dateSelect" onchange="dateChanged(this.options[this.selectedIndex].value)">
+    <select id="dateSelect" onchange="dateChanged()">
       <option>All</option>
     </select>
-    <select id="gameSelect" onchange="gameChanged(this.options[this.selectedIndex].value)">
+    <select id="gameSelect" onchange="gameChanged()">
       <option>All</option>
     </select>
-    -->
+    <button id="filter" onclick="filterLocs()">Filter</button>
     <div id="map"/>
   </body>
 </html>

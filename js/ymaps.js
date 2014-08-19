@@ -1,10 +1,11 @@
 var myMap,
     dozotory,
     allObjects = [],
+    filterInds = [],
     targetObjects,
     loaded = false;
 
-ymaps.ready(init).then(fetch(true));
+ymaps.ready(init).then(function() {fetch(true); leagueChanged()});
 
 function init() {
     // create map ///////////////////////////////////
@@ -22,9 +23,8 @@ function init() {
 
     myMap.controls.add(mySearchControl);
 
-
     var ButtonLayout = ymaps.templateLayoutFactory.createClass(
-            "<input type='file' class='fileR' id='files' name='chosenFile' multiple=3" +
+            "<input type='file' class='fileR' id='files' name='chosenFile' multiple='multiple'" +
             "accept='text/txt' onchange='handleFileSelect(this.files);'/>"
         ),
             
@@ -72,7 +72,7 @@ function init() {
     // create visible objects group
     targetObjects = new ymaps.GeoObjectCollection();
 
-    print("map initialized");
+    console.log("map initialized");
 }
 
 //init END ///////////////////////////////////////////
@@ -97,7 +97,7 @@ function loadDozotory(resp) {
     dozotory.editor.startDrawing();
 
     myMap.setBounds(dozotory.geometry.getBounds());
-    print("dozPoints loaded");
+    console.log("dozPoints loaded");
 
     // THEN fetch coordinates
     fetchCoords();
@@ -110,6 +110,8 @@ function loadTargetObjects(resp) {
             coords = [ parseFloat(resp[i].key[2]), parseFloat(resp[i].key[3]) ],
             address = resp[i].key[4],
             lastUsed = resp[i].key[5];
+
+        filterInds.push(i);
 
         allObjects.push(new ymaps.Placemark(coords, {
             balloonContentHeader:  "<strong>locID:</strong> <span class='colortext'>" + locId + "</span> <strong>useCnt:</strong> <span class='colortext'>" 
@@ -127,27 +129,27 @@ function loadTargetObjects(resp) {
             if (target.properties.get('balloonContentBody', '') != "Идет загрузка данных...")
                 return;
 
+            loaded = false;
             fetchDetInf(target.properties.get('locId', ''));
         });
     }
 
     updateTargetObjects();
     myMap.geoObjects.add(targetObjects);
+
     loaded = true;
-    print("coords loaded");
+    enableFilter();
+    console.log("coords loaded");
 }
 
 function mapDetInf(locId, resp) {
     var ind = 1;
-    loaded = false;
     for (var j in allObjects) {
         if (allObjects[j].properties.get('locId', '') == locId) {
             ind = j;
             break;
         }
     }
-
-    console.log(allObjects[ind].properties.get('balloonContentBody', ''));
 
     allObjects[ind].properties.set('balloonContentBody', "<table>");
 
@@ -164,8 +166,6 @@ function mapDetInf(locId, resp) {
     oldStr = allObjects[ind].properties.get('balloonContentBody', '');
     allObjects[ind].properties.set('balloonContentBody', oldStr+"</table>");
 
-    console.log(allObjects[ind].properties.get('balloonContentBody', ''));
-
     loaded = true;
     console.log(locId + " detInf loaded");
 }
@@ -174,12 +174,32 @@ function updateTargetObjects() {
     //targetObjects.options.set('visible', false);
     targetObjects.removeAll();
 
-    for (var i in allObjects) {
-        if (dozotory.geometry.contains( allObjects[i].geometry.getCoordinates() ))
-            targetObjects.add(allObjects[i]);
-            //targetObjects.get(i).options.set('visible', true);
-    }
+    for (var i in filterInds)
+        if (dozotory.geometry.contains( allObjects[filterInds[i]].geometry.getCoordinates() ))
+            targetObjects.add(allObjects[filterInds[i]]);
 }
+
+function filterTargetObjects(resp) {
+    console.log("filtering");
+    filterInds = [];
+
+    for (var i in allObjects)
+        if (responseContain( allObjects[i].properties.get('locId', ''), resp ))
+            filterInds.push(i);
+
+    updateTargetObjects();
+    loaded = true;
+}
+
+// for response.rows
+function responseContain(val, resp) {
+    for (var i in resp)
+        if (val == resp[i].key)
+            return true;
+
+    return false;
+}
+
 
 function getLocId(ind) {
     return allObjects[ind].properties.get('balloonContentHeader', '').substring(48, 51);
@@ -262,10 +282,11 @@ function handleFileSelect(files) {
                 readFile(addDozPoint, files[inds[2]]);
 
                 fetch(false);
+                leagueChanged();
             } else {
-                print("already loaded");
+                console.log("already loaded");
             }
         } else
-            print(err);
+            console.log(err);
     });
 }
