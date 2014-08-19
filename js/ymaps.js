@@ -114,47 +114,60 @@ function loadTargetObjects(resp) {
         allObjects.push(new ymaps.Placemark(coords, {
             balloonContentHeader:  "<strong>locID:</strong> <span class='colortext'>" + locId + "</span> <strong>useCnt:</strong> <span class='colortext'>" 
                                    + useCnt + "</span> <strong>lastUsed:</strong> <span class='colortext'>" + lastUsed + "</span>",
-            balloonContentBody: 'game1<br>game2',
-            balloonContentFooter: address + "<br>" + resp[i].key[2] + ", " + resp[i].key[3]
+            balloonContentBody: "Идет загрузка данных...",
+            balloonContentFooter: address + "<br>" + resp[i].key[2] + ", " + resp[i].key[3],
+            locId: locId
         }, {
             preset: 'islands#icon',
             iconColor: colours[i]
         }));
+
+        allObjects[i].events.add('balloonopen', function (e) {
+            var target = e.originalEvent.currentTarget;
+            if (target.properties.get('balloonContentBody', '') != "Идет загрузка данных...")
+                return;
+
+            fetchDetInf(target.properties.get('locId', ''));
+        });
     }
 
     updateTargetObjects();
     myMap.geoObjects.add(targetObjects);
+    loaded = true;
     print("coords loaded");
-
-    // THEN fetch detailed information
-    fetchDetInf();
 }
 
-function mapDetInf(resp) {
-    for (var j in allObjects)
-        allObjects[j].properties.set('balloonContentBody', "<table>");
-
-    for (var i in resp) {
-        for (var j in allObjects) {
-            if (getLocId(j) == resp[i].key[3]) {
-                var gameStr = "<tr>";
-                for (var k = 0; k < 3; k++)
-                    gameStr += "<td>" + resp[i].key[k] + "</td>";
-                gameStr += "</tr>";
-
-                var oldStr = allObjects[j].properties.get('balloonContentBody', '');
-                allObjects[j].properties.set('balloonContentBody', oldStr+gameStr);
-            }
+function mapDetInf(locId, resp) {
+    var ind = 1;
+    loaded = false;
+    for (var j in allObjects) {
+        if (allObjects[j].properties.get('locId', '') == locId) {
+            ind = j;
+            break;
         }
     }
 
-    for (var j in allObjects) {
-        var oldStr = allObjects[j].properties.get('balloonContentBody', '');
-        allObjects[j].properties.set('balloonContentBody', oldStr+"</table>");
+    console.log(allObjects[ind].properties.get('balloonContentBody', ''));
+
+    allObjects[ind].properties.set('balloonContentBody', "<table>");
+
+    for (var i in resp) {
+        var gameStr = "<tr>";
+        for (var k = 0; k < 3; k++)
+            gameStr += "<td>" + resp[i].key[k] + "</td>";
+        gameStr += "</tr>";
+
+        var oldStr = allObjects[ind].properties.get('balloonContentBody', '');
+        allObjects[ind].properties.set('balloonContentBody', oldStr+gameStr);
     }
 
+    oldStr = allObjects[ind].properties.get('balloonContentBody', '');
+    allObjects[ind].properties.set('balloonContentBody', oldStr+"</table>");
+
+    console.log(allObjects[ind].properties.get('balloonContentBody', ''));
+
     loaded = true;
-    print("detInf loaded");
+    console.log(locId + " detInf loaded");
 }
 
 function updateTargetObjects() {

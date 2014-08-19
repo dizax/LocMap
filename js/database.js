@@ -210,21 +210,21 @@ function fetch(check) {
 function fetchCoords() {
   print("fetching coords");
 
-  db1.query(function (doc) { emit([doc.useCnt, doc.locId, doc.coord1, doc.coord2, doc.address, doc.lastUsed]); },
+  db1.query(function (doc, emit) { emit([doc.useCnt, doc.locId, doc.coord1, doc.coord2, doc.address, doc.lastUsed]); },
     function (err, response) { if (!err) {print("coords fetched"); computeColours(response.rows); loadTargetObjects(response.rows);} else print(err); });
 }
 
-function fetchDetInf() {
-  print("fetching detInf");
+function fetchDetInf(locId) {
+  print("fetching detInf for " + locId);
 
-  db2.query(function (doc) { emit([doc.date, doc.league, doc.name, doc.locIdd]); }, {descending: true}, 
-    function (err, response) { if (!err) {print("detInf fetched"); mapDetInf(response.rows);} else print(err); });
+  db2.query(function (doc, emit) {if (locId == doc.locIdd) emit([doc.date, doc.league, doc.name]); }, {descending: true},
+    function (err, response) { if (!err) {print(locId + " detInf fetched"); mapDetInf(locId, response.rows);} else print(err); });
 }
 
 function fetchDozPoints() {
   print("fetching dozPoints");
 
-  db3.query(function (doc) { emit([doc._id, doc.coord1, doc.coord2]); },
+  db3.query(function (doc, emit) { emit([doc._id, doc.coord1, doc.coord2]); },
     function (err, response) { if (!err) {print("dozPoints fetched"); loadDozotory(response.rows);} else print(err); });
 }
 
