@@ -1,5 +1,5 @@
-<b>WARNING</b> <br>
-Alpha version, sort of, bugs are present.
+<b>DESCRIPTION</b> <br>
+Displays on map loaded locations, bounded by given polygon.
 
 <b>USAGE</b> <br>
 At first launch, choose 3 text files, representing tables, formatted like:
