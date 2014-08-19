@@ -80,6 +80,9 @@ function init() {
 function removeObjectsFromMap() {
     myMap.geoObjects.remove(targetObjects);
     myMap.geoObjects.remove(dozotory);
+    allObjects = [];
+    filterInds = [];
+    colours = [];
 }
 
 function loadDozotory(resp) {
