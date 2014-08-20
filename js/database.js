@@ -29,6 +29,7 @@ function createDatabase() {
 function destroyDatabase() {
     loaded = false;
     disableFilter();
+    clearFileInputs();
 
     db1.destroy(function(err, info) { })
         .then(function () {

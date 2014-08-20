@@ -3,6 +3,7 @@ var myMap,
     allObjects = [],
     filterInds = [],
     targetObjects,
+    files = [],
     loaded = false;
 
 ymaps.ready(init).then(function() {fetch(true); leagueChanged()});
@@ -23,9 +24,9 @@ function init() {
 
     myMap.controls.add(mySearchControl);
 
-    var ButtonLayout = ymaps.templateLayoutFactory.createClass(
-            "<input type='file' class='fileR' id='files' name='chosenFile' multiple='multiple'" +
-            "accept='text/txt' onchange='handleFileSelect(this.files);'/>"
+    /*var ButtonLayout = ymaps.templateLayoutFactory.createClass(
+            "<input type='file' class='fileR' id='files' name='chosenFile' multiple=" +
+            "accept='text/txt' onchange='handleFilesSelect(this.files);'/>"
         ),
             
         button = new ymaps.control.Button({
@@ -34,7 +35,7 @@ function init() {
         });
     myMap.controls.add(button, { float: 'right', floatIndex: 100 });
 
-    /*button2 = new ymaps.control.Button("Info");
+    button2 = new ymaps.control.Button("Info");
     button2.options.set('selectOnClick', false);
     button2.events.add('click', dbInfo);
     myMap.controls.add(button2, {float: 'right'});
@@ -42,12 +43,12 @@ function init() {
     button3 = new ymaps.control.Button("Save DOZ");
     button3.options.set('selectOnClick', false);
     button3.events.add('click', saveDozPoints);
-    myMap.controls.add(button3, {float: 'right'});*/
+    myMap.controls.add(button3, {float: 'right'});
 
     button4 = new ymaps.control.Button("Destroy");
     button4.options.set('selectOnClick', false);
     button4.events.add('click', destroyDatabase);
-    myMap.controls.add(button4, {float: 'right'});
+    myMap.controls.add(button4, {float: 'right'});*/
 
 	// initializing variables ////////////////////////
     // create bounds
@@ -83,6 +84,7 @@ function removeObjectsFromMap() {
     allObjects = [];
     filterInds = [];
     colours = [];
+    files = [];
 }
 
 function loadDozotory(resp) {
@@ -253,17 +255,22 @@ CustomSearchProvider.prototype.geocode = function (request, options) {
 
 
 // file reader
-function handleFileSelect(files) {
+function handleFilesSelect(m_files) {
     console.log("here");
 
-    if (files.length > 3) {
-        alert('Too much files');
+    if (m_files.length < 3) {
+        alert('Too few files');
+        return;
+    }
+
+    if (m_files.length > 3) {
+        alert('Too many files');
         return;
     }
 
     var names = [];
-    for (var i in files)
-        names.push(files[i].name);
+    for (var i in m_files)
+        names.push(m_files[i].name);
 
     var inds = [];
     for (var i in fileNames)
@@ -280,9 +287,9 @@ function handleFileSelect(files) {
             console.log("db_locs_cnt", info.doc_count);
             if (info.doc_count == 0) {
                 console.log("reading");
-                readFile(addLoc, files[inds[0]]);
-                readFile(addDetLoc, files[inds[1]]);
-                readFile(addDozPoint, files[inds[2]]);
+                readFile(addLoc, m_files[inds[0]]);
+                readFile(addDetLoc, m_files[inds[1]]);
+                readFile(addDozPoint, m_files[inds[2]]);
 
                 fetch(false);
                 leagueChanged();
@@ -292,4 +299,28 @@ function handleFileSelect(files) {
         } else
             console.log(err);
     });
+}
+
+function handleFileSelect(ind, m_files) {
+    if (fileNames[ind] != m_files[0].name) {
+        alert("It's not " + fileNames[ind]);
+        return;
+    }
+
+    files.push(m_files[0]);
+}
+
+function readDatabase() {
+    handleFilesSelect(files);
+}
+
+function clearFileInputs() {
+    var inputs = [
+        $("#locsFile"),
+        $("#detLocsFile"),
+        $("#dozPointFile")
+    ];
+
+    for (var i in inputs)
+        inputs[i].replaceWith( inputs[i] = inputs[i].clone( true ) );
 }

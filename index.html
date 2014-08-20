@@ -44,6 +44,13 @@
       <option>All</option>
     </select>
     <button id="filter" onclick="filterLocs()">Filter</button>
+
+    <button id="destroy" onclick="destroyDatabase()">Destroy</button>
+    <input type='file' id='locsFile' value='locations' accept='text/txt' onchange='handleFileSelect(0, this.files);'/>
+    <input type='file' id='detLocsFile' value='det_locations' accept='text/txt' onchange='handleFileSelect(1, this.files);'/>
+    <input type='file' id='dozPointFile' value='doz_points' accept='text/txt' onchange='handleFileSelect(2, this.files);'/>
+    <button id="read" onclick="readDatabase()">Read</button>
+
     <div id="map"/>
   </body>
 </html>
