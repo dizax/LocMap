@@ -301,10 +301,26 @@ function handleFilesSelect(m_files) {
     });
 }
 
-function handleFileSelect(ind, m_files) {
-    if (fileNames[ind] != m_files[0].name) {
-        alert("It's not " + fileNames[ind]);
+function handleFileSelect(m_files) {
+    var valid = false;
+    for (var i in fileNames) {
+        if (fileNames[i] == m_files[0].name) {
+            valid = true;
+            break;
+        }
+    }
+
+    if (!valid) {
+        alert('Invalid filename');
         return;
+    }
+
+    // check repeats
+    for (var i in files) {
+        if (files[i].name == m_files[0].name) {
+            alert(m_files[0].name + 'is already added');
+            return;
+        }
     }
 
     files.push(m_files[0]);
