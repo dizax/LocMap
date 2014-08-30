@@ -29,15 +29,33 @@ function rgbToHex(rgb) {
 }
 
 function computeColours (resp) {
+    var uniques = [parseInt(resp[0].key[0])],
+        cur, cof;
+
+    for (var i = 1; i < resp.length; i++) {
+        cur = parseInt(resp[i].key[0]);
+        if (uniques[uniques.length-1] != cur)
+            uniques.push(cur);
+    }
+
+    var max = uniques.length-1;
+    cur = 0;
+    for (var i in resp) {
+        if (parseInt(resp[i].key[0]) != uniques[cur])
+            cur++;
+        cof = (max-cur) / max;
+        colours.push(rgbToHex(HSVtoRGB(0.5*cof, 1., 1.)));
+    }
+
+	/*var len = resp.length,
+        min = parseInt(resp[0].key[0]),
+        max = parseInt(resp[len-1].key[0])
 	for (var i in resp) {
     	//-(x-max)/(max-min)
-    	var len = resp.length,
-    		min = parseInt(resp[0].key[0]),
-    		max = parseInt(resp[len-1].key[0])
         cof = -(parseInt(resp[i].key[0]) - max) /
         	  (max - min);
         colours.push(rgbToHex(HSVtoRGB(0.5*cof, 1., 1.)));
-    }
+    }*/
 }
 
 

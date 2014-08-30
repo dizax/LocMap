@@ -1,6 +1,6 @@
 function printGeometry (coords) {
-	for (var ind in coords) {
-	    console.log('Координаты: ' + stringify(coords[ind]));
+	for (var ind = 0; ind < coords.length-1; ind++) {
+	    console.log(stringify(coords[ind][0]) + '\t' + stringify(coords[ind][1]));
 
 	    function stringify (coords) {
 	        var res = '';
@@ -22,6 +22,10 @@ function printGeometry (coords) {
 	        return res;
 	    }
 	}
+}
+
+function printPolygon() {
+    printGeometry(dozotory.geometry.getCoordinates()[0]);
 }
 
 var mkad =  [

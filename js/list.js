@@ -1,3 +1,15 @@
+var leagueNames = ['лайт', 'бета', 'классика', 'альфа', 'первая', 'высшая'];
+
+function populateLeagueList() {
+    console.log("populating league list");
+
+    $('#leagueSelect')
+        .empty()
+        .append( $('<option>All</option>') );
+    for (var i in leagueNames)
+        $("#leagueSelect").append( $('<option>' + leagueNames[i] + '</option>') );
+}
+
 // select onchanged
 function leagueChanged() {
     var leagueQ = $( "#leagueSelect option:selected" ).text();
@@ -104,13 +116,13 @@ function enableFilter() {
 function clearSelectors() {
     $('#leagueSelect')
         .empty()
-        .append( $('<option>All</option>') );
+        .append( $('All') );
     $('#dateSelect')
         .empty()
-        .append( $('<option>All</option>') );
+        .append( $('All') );
     $('#gameSelect')
         .empty()
-        .append( $('<option>All</option>') );
+        .append( $('All') );
 }
 
 // button onclicked
@@ -140,6 +152,8 @@ function filterLocs() {
 function acceptQuery(query, league) {
     if (query == "All")
         return true;
+    if (query == "классика")
+        return league != "лайт" && league != "бета";
 
     return query == league;
 }

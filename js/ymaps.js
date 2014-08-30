@@ -6,14 +6,19 @@ var myMap,
     files = [],
     loaded = false;
 
-ymaps.ready(init).then(function() {fetch(true); leagueChanged()});
+ymaps.ready(init)
+    .then(function() {
+        fetch(true);
+        populateLeagueList();
+        leagueChanged()
+    });
 
 function init() {
     // create map ///////////////////////////////////
     myMap = new ymaps.Map('map', {
         center: [55.734046, 37.588628],
         zoom: 9,
-        controls: ['zoomControl', 'typeSelector', 'geolocationControl']
+        controls: ['zoomControl', 'typeSelector', 'geolocationControl', 'rulerControl']
     });
 
     // create controls /////////////////////////////////
@@ -24,31 +29,10 @@ function init() {
 
     myMap.controls.add(mySearchControl);
 
-    /*var ButtonLayout = ymaps.templateLayoutFactory.createClass(
-            "<input type='file' class='fileR' id='files' name='chosenFile' multiple=" +
-            "accept='text/txt' onchange='handleFilesSelect(this.files);'/>"
-        ),
-            
-        button = new ymaps.control.Button({
-            data: { content: "Жмак-жмак" },
-            options: { layout: ButtonLayout }
-        });
-    myMap.controls.add(button, { float: 'right', floatIndex: 100 });
-
-    button2 = new ymaps.control.Button("Info");
-    button2.options.set('selectOnClick', false);
-    button2.events.add('click', dbInfo);
-    myMap.controls.add(button2, {float: 'right'});
-
-    button3 = new ymaps.control.Button("Save DOZ");
+    /*button3 = new ymaps.control.Button("Save Polygon");
     button3.options.set('selectOnClick', false);
     button3.events.add('click', saveDozPoints);
-    myMap.controls.add(button3, {float: 'right'});
-
-    button4 = new ymaps.control.Button("Destroy");
-    button4.options.set('selectOnClick', false);
-    button4.events.add('click', destroyDatabase);
-    myMap.controls.add(button4, {float: 'right'});*/
+    myMap.controls.add(button3, {float: 'right'});*/
 
 	// initializing variables ////////////////////////
     // create bounds
@@ -95,7 +79,7 @@ function loadDozotory(resp) {
 
     // create bounds
     dozotory.geometry.setCoordinates(coords);
-    dozotory.options.set('editorMaxPoints', coords[0].length+1);
+    dozotory.options.set('editorMaxPoints', coords[0].length);
 
     // resizable bounds
     myMap.geoObjects.add(dozotory);
@@ -119,8 +103,8 @@ function loadTargetObjects(resp) {
         filterInds.push(i);
 
         allObjects.push(new ymaps.Placemark(coords, {
-            balloonContentHeader:  "<strong>locID:</strong> <span class='colortext'>" + locId + "</span> <strong>useCnt:</strong> <span class='colortext'>" 
-                                   + useCnt + "</span> <strong>lastUsed:</strong> <span class='colortext'>" + lastUsed + "</span>",
+            balloonContentHeader:  "</span> <strong>useCnt:</strong> <span class='colortext'>"
+                                   + parseInt(useCnt) + "</span> <strong>lastUsed:</strong> <span class='colortext'>" + lastUsed + "</span>",
             balloonContentBody: "Идет загрузка данных...",
             balloonContentFooter: address + "<br>" + resp[i].key[2] + ", " + resp[i].key[3],
             locId: locId
@@ -160,8 +144,11 @@ function mapDetInf(locId, resp) {
 
     for (var i in resp) {
         var gameStr = "<tr>";
+        // date + league + taskNum (later change 2->3)
         for (var k = 0; k < 3; k++)
             gameStr += "<td>" + resp[i].key[k] + "</td>";
+        // game name + link
+        gameStr += "<td><a href=" + resp[i].key[3] + ">" + resp[i].key[4] + "</a></td>";
         gameStr += "</tr>";
 
         var oldStr = allObjects[ind].properties.get('balloonContentBody', '');
@@ -203,11 +190,6 @@ function responseContain(val, resp) {
             return true;
 
     return false;
-}
-
-
-function getLocId(ind) {
-    return allObjects[ind].properties.get('balloonContentHeader', '').substring(48, 51);
 }
 
 
@@ -292,6 +274,7 @@ function handleFilesSelect(m_files) {
                 readFile(addDozPoint, m_files[inds[2]]);
 
                 fetch(false);
+                populateLeagueList();
                 leagueChanged();
             } else {
                 console.log("already loaded");

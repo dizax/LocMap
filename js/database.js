@@ -117,7 +117,9 @@ function addDetLoc(id, row) {
         league: row[0],
         date: row[1],
         name: row[2],
-        locIdd: row[3]
+        locIdd: row[3],
+        taskNum: row[4],
+        link: row[5]
     };
 
     return db2.put(detLoc, function callback(err) {
@@ -224,7 +226,7 @@ function fetchCoords() {
 function fetchDetInf(locId) {
   console.log("fetching detInf for " + locId);
 
-  db2.query(function (doc, emit) {if (locId == doc.locIdd) emit([doc.date, doc.league, doc.name]); }, {descending: true},
+  db2.query(function (doc, emit) {if (locId == doc.locIdd) emit([doc.date, doc.league, doc.taskNum, doc.link, doc.name]); }, {descending: true},
     function (err, response) { if (!err) {console.log(locId + " detInf fetched"); mapDetInf(locId, response.rows);} else console.log(err); });
 }
 
