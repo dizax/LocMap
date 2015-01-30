@@ -1,18 +1,31 @@
+var is_chrome = navigator.userAgent.toLowerCase().indexOf('chrome') > -1;
+
 var myMap,
+    selectedShape,
+    geoQuery,
     dozotory,
+    oldPolyGeom = [],
+    tmpPolyMinus = [],
+    tmpPolyPlus = [],
     allObjects = [],
     filterInds = [],
+    insidePolyInds = [],
     targetObjects,
+    dbFileName = [],
+    dbLink = "",
     loaded = false;
 
-ymaps.ready(init).then(function() {fetch(true); leagueChanged()});
+ymaps.ready(init)
+.then(function() {
+    fetch(true);
+});
 
 function init() {
     // create map ///////////////////////////////////
     myMap = new ymaps.Map('map', {
         center: [55.734046, 37.588628],
         zoom: 9,
-        controls: ['zoomControl', 'typeSelector', 'geolocationControl']
+        controls: ['zoomControl', 'typeSelector', 'geolocationControl', 'rulerControl']
     });
 
     // create controls /////////////////////////////////
@@ -23,50 +36,44 @@ function init() {
 
     myMap.controls.add(mySearchControl);
 
-    var ButtonLayout = ymaps.templateLayoutFactory.createClass(
-            "<input type='file' class='fileR' id='files' name='chosenFile' multiple='multiple'" +
-            "accept='text/txt' onchange='handleFileSelect(this.files);'/>"
-        ),
-            
-        button = new ymaps.control.Button({
-            data: { content: "Жмак-жмак" },
-            options: { layout: ButtonLayout }
-        });
-    myMap.controls.add(button, { float: 'right', floatIndex: 100 });
-
-    /*button2 = new ymaps.control.Button("Info");
-    button2.options.set('selectOnClick', false);
-    button2.events.add('click', dbInfo);
-    myMap.controls.add(button2, {float: 'right'});
-
-    button3 = new ymaps.control.Button("Save DOZ");
-    button3.options.set('selectOnClick', false);
-    button3.events.add('click', saveDozPoints);
-    myMap.controls.add(button3, {float: 'right'});*/
-
-    button4 = new ymaps.control.Button("Destroy");
-    button4.options.set('selectOnClick', false);
-    button4.events.add('click', destroyDatabase);
-    myMap.controls.add(button4, {float: 'right'});
-
 	// initializing variables ////////////////////////
     // create bounds
-    dozotory = new ymaps.Polygon([
-        mkad
-    ], {
-    }, {
+    dozotory = new ymaps.Polygon([mkad, []], {}, {
         editorDrawingCursor: "crosshair",
-        editorMaxPoints: 8,
         fillColor: '#6699ff',
+        strokeColor: '#4B0082',
         // Делаем полигон прозрачным для событий карты.
-        interactivityModel: 'default#transparent',
+        //interactivityModel: 'default#transparent',
         strokeWidth: 2,
         opacity: 0.2
     });
 
+    // При клике на пустое место карты, останавливаем редактирование выделенного полигона
+    myMap.events.add(['click'], function(){
+        if(selectedShape && selectedShape.editor && selectedShape.editor.stopEditing){
+            selectedShape.editor.stopEditing();
+        }
+        selectedShape = null;
+    });
+
+    // при клике на плигон, включаем его редактирование
+    dozotory.events.add('click', function(e){
+        if(selectedShape && selectedShape.editor && selectedShape.editor.stopEditing){
+            selectedShape.editor.stopEditing();
+            selectedShape = null;
+        } else {
+            selectedShape = e.get('target');
+            selectedShape.editor.startEditing();
+        }
+    });
+
     dozotory.events.add('geometrychange', function(event) {
         // wait editor to finish
-        dozotory.editor.getModel().then(updateTargetObjects);
+        dozotory.editor.getModel().then(function() {
+            updateTempPoly();
+            updateTargetObjectsAfterPolyChange();
+            saveDozPoints();
+        });
     });
 
     // create visible objects group
@@ -74,50 +81,53 @@ function init() {
 
     console.log("map initialized");
 }
-
 //init END ///////////////////////////////////////////
 
 function removeObjectsFromMap() {
     myMap.geoObjects.remove(targetObjects);
     myMap.geoObjects.remove(dozotory);
+    allObjects = [];
+    filterInds = [];
+    insidePolyInds = [];
+    colours = [];
+    sortedUse = [];
+    dbFileName = "";
+    selectedShape = null;
 }
+
 
 function loadDozotory(resp) {
     // resp -> coords
     var coords = [[]];
     for (var i in resp)
-        coords[0].push( [ parseFloat(resp[i].key[1]), parseFloat(resp[i].key[2]) ] );
+        coords[0].push(resp[i]);
 
     // create bounds
     dozotory.geometry.setCoordinates(coords);
-    dozotory.options.set('editorMaxPoints', coords[0].length+1);
+    /*oldPolyGeom = [];*/ oldPolyGeom = dozotory.geometry.getCoordinates()[0];
 
     // resizable bounds
     myMap.geoObjects.add(dozotory);
-    dozotory.editor.startDrawing();
 
     myMap.setBounds(dozotory.geometry.getBounds());
     console.log("dozPoints loaded");
-
-    // THEN fetch coordinates
-    fetchCoords();
 }
 
 function loadTargetObjects(resp) {
-    for (var i in resp) {
-        var useCnt = resp[i].key[0],
-            locId = resp[i].key[1],
-            coords = [ parseFloat(resp[i].key[2]), parseFloat(resp[i].key[3]) ],
-            address = resp[i].key[4],
-            lastUsed = resp[i].key[5];
+    for (var i =0; i < resp.length; i++) {
+        var useCnt = resp[i][0],
+            locId = resp[i][1],
+            coords = [resp[i][2], resp[i][3]],
+            address = resp[i][4],
+            lastUsed = resp[i][5];
 
-        filterInds.push(i);
+        filterInds.push(sortedUse[i][1]);
 
         allObjects.push(new ymaps.Placemark(coords, {
-            balloonContentHeader:  "<strong>locID:</strong> <span class='colortext'>" + locId + "</span> <strong>useCnt:</strong> <span class='colortext'>" 
+            balloonContentHeader:  "</span> <strong>useCnt:</strong> <span class='colortext'>"
                                    + useCnt + "</span> <strong>lastUsed:</strong> <span class='colortext'>" + lastUsed + "</span>",
             balloonContentBody: "Идет загрузка данных...",
-            balloonContentFooter: address + "<br>" + resp[i].key[2] + ", " + resp[i].key[3],
+            balloonContentFooter: address + "<br>" + resp[i][2] + ", " + resp[i][3],
             locId: locId
         }, {
             preset: 'islands#icon',
@@ -134,7 +144,7 @@ function loadTargetObjects(resp) {
         });
     }
 
-    updateTargetObjects();
+    computeTargetObjectsInsidePoly();
     myMap.geoObjects.add(targetObjects);
 
     loaded = true;
@@ -143,20 +153,17 @@ function loadTargetObjects(resp) {
 }
 
 function mapDetInf(locId, resp) {
-    var ind = 1;
-    for (var j in allObjects) {
-        if (allObjects[j].properties.get('locId', '') == locId) {
-            ind = j;
-            break;
-        }
-    }
+    var ind = locId-1;
 
     allObjects[ind].properties.set('balloonContentBody', "<table>");
 
     for (var i in resp) {
         var gameStr = "<tr>";
+        // date + league + taskNum (later change 2->3)
         for (var k = 0; k < 3; k++)
-            gameStr += "<td>" + resp[i].key[k] + "</td>";
+            gameStr += "<td>" + resp[i][k] + "</td>";
+        // game name + link
+        gameStr += "<td><a href=" + resp[i][3] + ">" + resp[i][4] + "</a></td>";
         gameStr += "</tr>";
 
         var oldStr = allObjects[ind].properties.get('balloonContentBody', '');
@@ -170,39 +177,16 @@ function mapDetInf(locId, resp) {
     console.log(locId + " detInf loaded");
 }
 
-function updateTargetObjects() {
-    //targetObjects.options.set('visible', false);
-    targetObjects.removeAll();
-
-    for (var i in filterInds)
-        if (dozotory.geometry.contains( allObjects[filterInds[i]].geometry.getCoordinates() ))
-            targetObjects.add(allObjects[filterInds[i]]);
-}
-
 function filterTargetObjects(resp) {
     console.log("filtering");
     filterInds = [];
 
-    for (var i in allObjects)
-        if (responseContain( allObjects[i].properties.get('locId', ''), resp ))
-            filterInds.push(i);
-
-    updateTargetObjects();
-    loaded = true;
-}
-
-// for response.rows
-function responseContain(val, resp) {
     for (var i in resp)
-        if (val == resp[i].key)
-            return true;
+        filterInds.push(resp[i][0]-1);
 
-    return false;
-}
-
-
-function getLocId(ind) {
-    return allObjects[ind].properties.get('balloonContentHeader', '').substring(48, 51);
+    updateTargetObjectsAfterFilter();
+    loaded = true;
+    console.log("done filtering");
 }
 
 
@@ -250,43 +234,12 @@ CustomSearchProvider.prototype.geocode = function (request, options) {
 
 
 // file reader
-function handleFileSelect(files) {
-    console.log("here");
 
-    if (files.length > 3) {
-        alert('Too much files');
-        return;
-    }
+function clearFileInputs() {
+    var inputs = [
+        $("#locsFile")
+    ];
 
-    var names = [];
-    for (var i in files)
-        names.push(files[i].name);
-
-    var inds = [];
-    for (var i in fileNames)
-        inds.push(names.indexOf(fileNames[i]));
-    
-    if (inds.indexOf(-1) > -1) {
-        alert('Some files missing');
-        return;
-    }
-
-    // if db is not empty -> stop
-    db1.info(function(err, info) {
-        if (!err) {
-            console.log("db_locs_cnt", info.doc_count);
-            if (info.doc_count == 0) {
-                console.log("reading");
-                readFile(addLoc, files[inds[0]]);
-                readFile(addDetLoc, files[inds[1]]);
-                readFile(addDozPoint, files[inds[2]]);
-
-                fetch(false);
-                leagueChanged();
-            } else {
-                console.log("already loaded");
-            }
-        } else
-            console.log(err);
-    });
+    for (var i in inputs)
+        inputs[i].replaceWith( inputs[i] = inputs[i].clone( true ) );
 }
