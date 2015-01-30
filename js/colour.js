@@ -1,3 +1,7 @@
+var colours = [],
+    sortedUse = [];
+
+
 function HSVtoRGB(h, s, v) {
     var r, g, b, i, f, p, q, t;
     if (h && s === undefined && v === undefined) {
@@ -24,39 +28,32 @@ function HSVtoRGB(h, s, v) {
 }
 
 function rgbToHex(rgb) {
-	var r = rgb.r, g = rgb.g, b = rgb.b;
+    var r = rgb.r, g = rgb.g, b = rgb.b;
     return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
-function computeColours (resp) {
-    var uniques = [parseInt(resp[0].key[0])],
+function computeColours (response) {
+    for (var i in response) {
+        sortedUse.push([response[i][0], response[i][1]-1]);
+        colours.push(0);
+    }
+    sortedUse.sort(function (a, b) {return a[0]-b[0]});
+
+    var uniques = [sortedUse[0][0]],
         cur, cof;
 
-    for (var i = 1; i < resp.length; i++) {
-        cur = parseInt(resp[i].key[0]);
+    for (var i = 1; i < sortedUse.length; i++) {
+        cur = sortedUse[i][0];
         if (uniques[uniques.length-1] != cur)
             uniques.push(cur);
     }
-
     var max = uniques.length-1;
+
     cur = 0;
-    for (var i in resp) {
-        if (parseInt(resp[i].key[0]) != uniques[cur])
+    for (var i in sortedUse) {
+        if (sortedUse[i][0] != uniques[cur])
             cur++;
         cof = (max-cur) / max;
-        colours.push(rgbToHex(HSVtoRGB(0.5*cof, 1., 1.)));
+        colours[sortedUse[i][1]] = rgbToHex(HSVtoRGB(0.5*cof, 1., 1.));
     }
-
-	/*var len = resp.length,
-        min = parseInt(resp[0].key[0]),
-        max = parseInt(resp[len-1].key[0])
-	for (var i in resp) {
-    	//-(x-max)/(max-min)
-        cof = -(parseInt(resp[i].key[0]) - max) /
-        	  (max - min);
-        colours.push(rgbToHex(HSVtoRGB(0.5*cof, 1., 1.)));
-    }*/
 }
-
-
-var colours = [];

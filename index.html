@@ -6,7 +6,9 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <script src="http://api-maps.yandex.ru/2.1/?lang=ru_RU" type="text/javascript"></script>
     <script src="js/jquery-2.1.1.min.js" type="text/javascript"></script>
-    <script src="js/pouchdb.js" type="text/javascript"></script>
+    <script src="js/jquery.cookie.js" type="text/javascript"></script>
+    <script src="js/jquery.storageapi.min.js" type="text/javascript"></script>
+    <script src="js/sql.js" type="text/javascript"></script>
 
     <style type="text/css">
         html { overflow-y: hidden; }
@@ -30,22 +32,23 @@
   </head>
 
   <body>
-    <select id="leagueSelect" onchange="leagueChanged()">
-      <option>All</option>
-    </select>
-    <select id="dateSelect" onchange="dateChanged()">
-      <option>All</option>
-    </select>
-    <select id="gameSelect" onchange="gameChanged()">
-      <option>All</option>
-    </select>
     <button id="filter" onclick="filterLocs()">Filter</button>
+    <select id="sinceSelect" style="width: 100px" onchange="leagueChanged()">
+      <option>All</option>
+    </select>
+    <select id="leagueSelect" style="width: 100px" onchange="leagueChanged()">
+      <option>All</option>
+    </select>
+    <select id="dateSelect" style="width: 100px" onchange="dateChanged()">
+      <option>All</option>
+    </select>
+    <select id="gameSelect" style="width: 100px" onchange="gameChanged()">
+      <option>All</option>
+    </select>
 
     <button id="destroy" onclick="destroyDatabase()">Destroy</button>
-    <input type='file' id='locsFile' value='locations' accept='text/txt' onchange='handleFileSelect(this.files);'/>
-    <input type='file' id='detLocsFile' value='det_locations' accept='text/txt' onchange='handleFileSelect(this.files);'/>
-    <input type='file' id='dozPointFile' value='doz_points' accept='text/txt' onchange='handleFileSelect(this.files);'/>
-    <button id="read" onclick="readDatabase()">Read</button>
+    <button id="destroy" onclick="loadFromUrl(dbLink)">Load</button>
+    <input type='file' id='locsFile' value='locations' accept='text/txt' onchange='readFile(this.files);'/>
 
     <div id="map"/>
   </body>

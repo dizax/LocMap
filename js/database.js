@@ -1,261 +1,251 @@
 'use strict';
 
-var fileNames = ["locations.txt",
-                 "locations_detailed.txt",
-                 "dozPoints.txt"];
-var db1, db2, db3;
+var db = new SQL.Database();
 
-createDatabase();
+window.onbeforeunload = freeDb;
+function freeDb(){
+    if (db != null) db.close();
+    return;
+};
 
-function createDatabase() {
-    (function() {
-        var dfd = new $.Deferred();
-        db1 = new PouchDB('locs');
-        return dfd.promise();
-    })()
-        .then((function() {
-            var dfd2 = new $.Deferred();
-            db2 = new PouchDB('detLocs');
-            return dfd2.promise();
-        })()
-            .then((function() {
-                var dfd3 = new $.Deferred();
-                db3 = new PouchDB('dozPoints');
-                return dfd3.promise();
-            })())
-                .then(console.log("done creating")));
-}
 
 function destroyDatabase() {
+    if (!loaded)
+      return;
+
     loaded = false;
     disableFilter();
     clearFileInputs();
 
-    db1.destroy(function(err, info) { })
-        .then(function () {
-            db2.destroy(function(err, info) { })
-                .then(function () {
-                    db3.destroy(function(err, info) { })
-                        .then(function() {
-                            removeObjectsFromMap();
-                            clearSelectors();
-                            console.log("done destroying");
+    if (!isDbEmpty()) {
+        console.log("clearing database");
 
-                            // recreate objects
-                            createDatabase();
-                        })
-                })
-        });
+        clearTable("Locations_list");
+        clearTable("Tasks_list");
+        clearTable("Games_list");
+        db.close();
+        if (is_chrome) $.localStorage.remove("boundPoints"); else $.cookies.remove("boundPoints");
+        $.localStorage.remove("locDb");
+
+        removeObjectsFromMap();
+        clearSelectors();
+
+        console.log("database cleared");
+    }
+}
+
+function clearTable(tablename) {
+    var query2 = "DROP TABLE IF EXISTS " + tablename + ";";
+    db.exec(query2);
+    return;
+
+    db.transaction(function (tx) {
+      tx.executeSql(query2);
+    });
 }
 
 // reading from file
-function readFile(f, file) {
-    var reader = new FileReader();
-
-    //break the lines apart
-    reader.onload = (function(theFile) {
-    return function(e) {
-      //call the parse function with the proper line terminator and cell terminator
-      parseCSV(e.target.result, f, '\n', '\t');
-    };
-    })(file);
-
-    // Read the file as text
-    reader.readAsText(file);
-}
-
-function parseCSV(text, f, lineTerminator, cellTerminator) {
-  var lines = text.split(lineTerminator);
-
-  consequentWriter(1, lines.length, lines, f, cellTerminator);
-}
-
-function consequentWriter(cur, max, lines, f, cellTerminator) {
-    if (cur >= max) {
-        // if last
-        if (f === addLoc)
-            console.log("write locs done");
-        else if (f === addDetLoc)
-            console.log("write detlocs done");
-        else if (f === addDozPoint)
-            console.log("write dozpoints done");
-
+function readFile(files) {
+    // check file name
+    if (files.length == 0) {
+        console.log("no file");
+        return;
+    }
+    if (files[0].name != "dozordb.sqlite") {
+        console.log("bad file");
         return;
     }
 
-    if (lines[cur] != "") {
-        //split the rows at the cellTerminator character
-        var information = lines[cur].split(cellTerminator);
-        f(cur, information).then( consequentWriter(cur+1, max, lines, f, cellTerminator) );
-    } else
-        consequentWriter(cur+1, max, lines, f, cellTerminator)
+    // if db is not empty -> stop
+    if (!isDbEmpty()) {
+        console.log("already loaded");
+        return;
+    }
+
+    var reader = new FileReader();
+    reader.onload = function(event) {
+        var arrayBuffer = event.target.result,
+            eightBitArray = new Uint8Array(arrayBuffer);
+
+        $.localStorage.set("locDb", Uint8ToString(eightBitArray));
+
+        db = new SQL.Database(eightBitArray);
+        fetch(false);
+    }
+    reader.readAsArrayBuffer(files[0]);
 }
 
+function loadFromUrl(url) {
+    // TODO not yet done
+    return;
 
-function addLoc(id, row) {
-    var loc = {
-        _id: id.toString(),
-        locId: row[0],
-        coord1: row[1],
-        coord2: row[2],
-        address: row[3],
-        lastUsed: row[4],
-        useCnt: row[5]
+    // if db is not empty -> stop
+    if (!loaded)
+      return;
+    if (!isDbEmpty()) {
+        console.log("already loaded");
+        return;
+    }
+
+    console.log("loading " + url);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.responseType = 'arraybuffer';
+
+    xhr.onload = function(e) {
+      console.log("loaded " + url);
+      var eightBitArray = new Uint8Array(this.response);
+
+      $.localStorage.set("locDb", Uint8ToString(eightBitArray));
+
+      db = new SQL.Database(eightBitArray);
+      fetch(false);
     };
-
-    return db1.put(loc, function callback(err) {
-        if (err) {
-            console.log('Cant post a location ' + row[0]);
-            console.log(err);
-        }
-    });
+    xhr.send();
 }
 
-function addDetLoc(id, row) {
-    var detLoc = {
-        _id: id.toString(),
-        league: row[0],
-        date: row[1],
-        name: row[2],
-        locIdd: row[3],
-        taskNum: row[4],
-        link: row[5]
-    };
-
-    return db2.put(detLoc, function callback(err) {
-        if (err) {
-            console.log('Cant post a detailed location');
-            console.log(err);
-        }
-    });
-}
-
-function addDozPoint(id, row) {
-    var dozPoint = {
-        _id: id.toString(),
-        coord1: row[0],
-        coord2: row[1]
-    };
-
-    return db3.put(dozPoint, function callback(err) {
-        if (err) {
-            console.log('Cant post dozotory point');
-            console.log(err);
-        }
-    });
-}
-
-function updateDozPoint(id, row) {
-  return db3.query(function (doc) {
-      console.log(parseInt(doc._id));
-      if (parseInt(doc._id) == id+1)
-        return db3.put({
-              _id: id.toString(),
-              _rev: doc._rev,
-              coord1: row[0],
-              coord2: row[1]
-            });
-      },
-      function (err, resp) {
-        if (!err) {
-          console.log(resp);
-          /*return db3.put({
-            _id: id.toString(),
-            _rev: resp[0]._rev,
-            coord1: row[0],
-            coord2: row[1]
-          });*/
-        } else {
-          console.log('Cant update dozotory point');
-          console.log(err);
-        }
-    });
+function loadDbFromLS() {
+    // TODO maybe async
+    db = new SQL.Database( StringToUint8($.localStorage.get("locDb")) );
 }
 
 // search queries //////////////////////////////////////
-function dbInfo() {
-  db1.info(function(err, info) {
-    if (!err)
-      console.log(info);
-    else
-      console.log(err);
-  });
-
-  db2.info(function(err, info) {
-    if (!err)
-      console.log(info);
-    else
-      console.log(err);
-  });
-
-  db3.info(function(err, info) {
-    if (!err)
-      console.log(info);
-    else
-      console.log(err);
-  });
+function isDbEmpty() {
+    return !$.localStorage.isSet("locDb");
 }
 
-
 function fetch(check) {
+    var dfd = $.Deferred();
+
     if (check) {
-        db1.info(function (err, info) {
-            if (!err) {
-                if (info.doc_count > 0) {
-                    loaded = false;
-                    fetchDozPoints();
-                }
-            } else
-                console.log(err);
-        });
+        if (!isDbEmpty()) {
+            loaded = false;
+            loadDbFromLS();
+            fetchDozPoints();
+            fetchCoords();
+            populateLists();
+        }
     } else {
         loaded = false;
         disableFilter();
 
-        fetchDozPoints();
+        if (!isDbEmpty()) {
+            fetchDozPoints();
+            fetchCoords();
+            populateLists();
+        }
     }
+
+    return dfd.promise();
+}
+
+function fetchDozPoints() {
+  console.log("fetching dozPoints");
+  var coords = loadDozPoints();
+  console.log("dozPoints fetched");
+
+  loadDozotory(coords);
 }
 
 function fetchCoords() {
   console.log("fetching coords");
 
-  db1.query(function (doc, emit) { emit([doc.useCnt, doc.locId, doc.coord1, doc.coord2, doc.address, doc.lastUsed]); },
-    function (err, response) { if (!err) {console.log("coords fetched"); computeColours(response.rows); loadTargetObjects(response.rows);} else console.log(err); });
+  var res = db.exec("SELECT COUNT(t.locId) as useCnt, l.locId as locId, coord1, coord2, address, MAX(g.gameDate) as lastUsed \
+      FROM  Locations_list l \
+      LEFT JOIN \
+            Tasks_list t \
+      ON l.locId = t.locId \
+      LEFT JOIN \
+            Games_list g \
+      ON t.gameId = g.gameId \
+      GROUP BY \
+            l.locId \
+      ORDER BY locId");
+  console.log("coords fetched");
+
+  computeColours(res[0]['values']);
+  loadTargetObjects(res[0]['values']);
 }
 
 function fetchDetInf(locId) {
   console.log("fetching detInf for " + locId);
 
-  db2.query(function (doc, emit) {if (locId == doc.locIdd) emit([doc.date, doc.league, doc.taskNum, doc.link, doc.name]); }, {descending: true},
-    function (err, response) { if (!err) {console.log(locId + " detInf fetched"); mapDetInf(locId, response.rows);} else console.log(err); });
+  var res = db.exec("SELECT \
+      Games_list.gameDate AS gameDate, \
+      Games_list.league, \
+      locs.taskNum AS taskNum, \
+      Games_list.gameLink AS gameLink, \
+      Games_list.gameName AS gameName \
+    FROM \
+     (SELECT gameId, taskNum FROM Tasks_list WHERE locId=" + locId + ") locs \
+     LEFT JOIN Games_list ON locs.gameId = Games_list.gameId \
+    ORDER BY gameDate DESC;");
+  
+  mapDetInf(locId, res[0]['values']);
 }
 
-function fetchDozPoints() {
-  console.log("fetching dozPoints");
+function filterLocs() {
+    if (!loaded)
+        return;
 
-  db3.query(function (doc, emit) { emit([doc._id, doc.coord1, doc.coord2]); },
-    function (err, response) { if (!err) {console.log("dozPoints fetched"); loadDozotory(response.rows);} else console.log(err); });
+    loaded = false;
+
+    var sinceQ = $( "#sinceSelect option:selected" ).text(),
+        leagueQ = $( "#leagueSelect option:selected" ).text(),
+        dateQ = $( "#dateSelect option:selected" ).text(),
+        nameQ = $( "#gameSelect option:selected" ).text();
+
+    console.log("fetching filter locs");
+
+    var sinceCond = "WHERE gameDate>='" + sinceQ + "' ",
+        leagueCond = ((leagueQ == "All") ? "" : "AND Games_list.league='" +leagueQ+ "' "),
+        dateCond = ((dateQ == "All") ? "" : "AND Games_list.gameDate='" +dateQ+ "' "),
+        nameCond = ((nameQ == "All") ? "" : "AND Games_list.gameName='" +nameQ+ "' ");
+    leagueCond = ((leagueQ == "классика") ? "AND (Games_list.league='альфа' OR Games_list.league='первая' OR Games_list.league='высшая') " : leagueCond);
+    var res = db.exec("SELECT Tasks_list.locId as locId, COUNT(Tasks_list.locId) as useCnt \
+            FROM Tasks_list \
+            LEFT JOIN Games_list ON Tasks_list.gameId = Games_list.gameId " +
+            sinceCond + leagueCond + dateCond + nameCond + 
+            "GROUP BY \
+            Tasks_list.locId \
+            ORDER BY useCnt");
+
+    console.log("filter locs fetched");
+
+    filterTargetObjects(res[0]['values']);
+}
+
+
+function loadDozPoints() {
+  if (is_chrome) {
+      var coords = $.localStorage.get("boundPoints");
+      return ((coords == null) ? mkad : coords);
+  } else {
+      var json_str = $.cookies.get("boundPoints");
+      return ((json_str == null) ? mkad : JSON.parse(json_str));
+  }
 }
 
 function saveDozPoints() {
-    console.log("saving dozPoints");
+  //console.log("saving bounds");
+    var coords = dozotory.geometry.getCoordinates()[0],
+        json_str = JSON.stringify(coords);
+    if (is_chrome) $.localStorage.set("boundPoints", json_str); else $.cookies.set("boundPoints", json_str);
+  //console.log("saved bounds");
+}
 
-    var lines = [],
-        coords = dozotory.geometry.getCoordinates()[0];
+// convert string<->blob
+function Uint8ToString(u8a){
+  var CHUNK_SZ = 0x8000;
+  var c = [];
+  for (var i=0; i < u8a.length; i+=CHUNK_SZ) {
+    c.push(String.fromCharCode.apply(null, u8a.subarray(i, i+CHUNK_SZ)));
+  }
+  return btoa(c.join(""));
+}
 
-    for (var i in coords)
-    lines.push(coords[i][0].toString() + "\t" + coords[i][1].toString());
-
-    db3.destroy(function(err, info) {})
-        .then((function() {
-            var dfd3 = new $.Deferred();
-
-            db3 = new PouchDB('dozPoints');
-
-            return dfd3.promise();
-        })()
-            .then( function() {
-                consequentWriter(0, lines.length, lines, addDozPoint, '\t');
-            }
-        ));
+function StringToUint8(u8a){
+  return new Uint8Array(atob(u8a).split("").map(function(c) {
+    return c.charCodeAt(0); }));
 }
